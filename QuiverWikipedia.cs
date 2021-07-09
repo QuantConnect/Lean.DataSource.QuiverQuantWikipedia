@@ -31,6 +31,11 @@ namespace QuantConnect.DataSource
     public class QuiverWikipedia : BaseData
     {
         /// <summary>
+        /// Data source ID
+        /// </summary>
+        public static int DataSourceId { get; } = 2017;
+
+        /// <summary>
         /// The date of the Page View count
         /// </summary>
         [ProtoMember(10)]
