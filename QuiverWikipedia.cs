@@ -114,11 +114,6 @@ namespace QuantConnect.DataSource
         /// <returns>Subscription Data Source.</returns>
         public override SubscriptionDataSource GetSource(SubscriptionDataConfig config, DateTime date, bool isLiveMode)
         {
-            if (isLiveMode)
-            {
-                throw new InvalidOperationException($"{nameof(QuiverWikipedia)} data source is currently not supported in live trading");
-            }
-
             var source = Path.Combine(
                 Globals.DataFolder,
                 "alternative",
