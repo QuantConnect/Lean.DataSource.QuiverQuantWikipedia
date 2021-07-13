@@ -82,6 +82,7 @@ namespace QuantConnect.DataProcessing
         public bool Run()
         {
             var stopwatch = Stopwatch.StartNew();
+            var today = DateTime.UtcNow.Date;
 
             try
             {
@@ -144,6 +145,12 @@ namespace QuantConnect.DataProcessing
 
                                     foreach (var wikipediaPage in wikipediaPageViews)
                                     {
+                                        if (wikipediaPage.Date.Date == today)
+                                        {
+                                            Log.Trace($"Encountered data from today for {ticker}: {today:yyyy-MM-dd} - Skipping");
+                                            continue;
+                                        }
+
                                         csvContents.Add(string.Join(",",
                                             $"{wikipediaPage.Date:yyyyMMdd}",
                                             $"{wikipediaPage.PageViews}",
