@@ -317,7 +317,6 @@ namespace QuantConnect.DataProcessing
         private void SaveContentToFile(string destinationFolder, string name, IEnumerable<string> contents)
         {
             name = name.ToLowerInvariant();
-            Directory.CreateDirectory(destinationFolder);
             var bkPath = Path.Combine(destinationFolder, $"{name}-bk.csv");
             var finalPath = Path.Combine(destinationFolder, $"{name}.csv");
             var finalFileExists = File.Exists(finalPath);
