@@ -36,7 +36,7 @@ namespace QuantConnect.DataProcessing
             // automatically to the value set on the website when defining this data type
             var destinationDataFolder = Config.Get("temp-output-directory", "/temp-output-directory");
             
-            QuiverWikipediaDataDownloader instance;
+            QuiverWikipediaDataDownloader instance = null;
             try
             {
                 // Pass in the values we got from the configuration into the downloader/converter.
@@ -45,7 +45,7 @@ namespace QuantConnect.DataProcessing
             catch (Exception err)
             {
                 Log.Error(err, $"QuantConnect.DataProcessing.Program.Main(): The downloader/converter for {QuiverWikipediaDataDownloader.VendorDataName} {QuiverWikipediaDataDownloader.VendorDataName} data failed to be constructed");
-                return;
+                Environment.Exit(1);
             }
 
             // No need to edit anything below here for most use cases.

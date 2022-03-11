@@ -22,8 +22,10 @@
     <Compile Remove="DataProcessing\**" />
     <EmbeddedResource Remove="DataProcessing\**" />
     <None Remove="DataProcessing\**" />
-    <Compile Remove="Demonstration.cs" />
-    <Compile Remove="DemonstrationUniverse.cs" />
+    <Compile Remove="QuiverWikipediaDataAlgorithm.cs" />
+    <Compile Remove="QuiverWikipediaUniverseSelectionAlgorithm.cs" />
+    <None Remove="QuiverWikipediaDataAlgorithm.py" />
+    <None Remove="QuiverWikipediaUniverseSelectionAlgorithm.py" />
     <None Remove=".gitignore" />
   </ItemGroup>
 

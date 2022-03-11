@@ -61,20 +61,25 @@ namespace QuantConnect.DataSource
         [ProtoMember(13)]
         [JsonProperty(PropertyName = "pct_change_month")]
         public decimal? MonthPercentChange { get; set; }
-        
+
         /// <summary>
         /// The period of time that occurs between the starting time and ending time of the data point
         /// </summary>
         [ProtoMember(14)]
-        public TimeSpan Period { get; set; }
+        public TimeSpan Period { get; set; } = TimeSpan.FromDays(1);
 
-        public override DateTime EndTime
-        {
-            // define end time as exactly 1 day after Time
-            get { return Time + QuantConnect.Time.OneDay; }
-            set { Time = value - QuantConnect.Time.OneDay; }
-        }
-        
+        /// <summary>
+        /// The time the data point ends at and becomes available to the algorithm
+        /// </summary>
+        public override DateTime EndTime => Time + Period;
+
+        /// <summary>
+        /// Return the URL string source of the file. This will be converted to a stream
+        /// </summary>
+        /// <param name="config">Configuration object</param>
+        /// <param name="date">Date of this source file</param>
+        /// <param name="isLiveMode">true if we're in live mode, false for backtesting mode</param>
+        /// <returns>String URL of source file.</returns>
         public override SubscriptionDataSource GetSource(SubscriptionDataConfig config, DateTime date, bool isLiveMode)
         {
             return new SubscriptionDataSource(
@@ -90,18 +95,28 @@ namespace QuantConnect.DataSource
             );
         }
 
+        /// <summary>
+        /// Parses the data from the line provided and loads it into LEAN
+        /// </summary>
+        /// <param name="config">Subscription configuration</param>
+        /// <param name="line">Line of data</param>
+        /// <param name="date">Date</param>
+        /// <param name="isLiveMode">Is live mode</param>
+        /// <returns>New instance</returns>
         public override BaseData Reader(SubscriptionDataConfig config, string line, DateTime date, bool isLiveMode)
         {
             var csv = line.Split(',');
+            var pageViews = decimal.Parse(csv[2], NumberStyles.Any, CultureInfo.InvariantCulture);
 
             return new QuiverWikipediaUniverse
             {
-                PageViews = decimal.Parse(csv[2], NumberStyles.Any, CultureInfo.InvariantCulture),
+                PageViews = pageViews,
                 WeekPercentChange = decimal.Parse(csv[3], NumberStyles.Any, CultureInfo.InvariantCulture),
                 MonthPercentChange = decimal.Parse(csv[4], NumberStyles.Any, CultureInfo.InvariantCulture),
 
                 Symbol = new Symbol(SecurityIdentifier.Parse(csv[0]), csv[1]),
-                Time = date.AddDays(-1),
+                Time = date - Period,
+                Value = pageViews
             };
         }
     }
