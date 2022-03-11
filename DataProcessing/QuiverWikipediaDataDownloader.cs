@@ -326,7 +326,7 @@ namespace QuantConnect.DataProcessing
             var tempPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tmp");
             File.WriteAllLines(tempPath, finalLines);
             var tempFilePath = new FileInfo(tempPath);
-            tempFilePath.MoveTo(finalPath);
+            tempFilePath.MoveTo(finalPath, true);
         }
 
         /// <summary>
