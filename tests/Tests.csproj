@@ -4,11 +4,13 @@
     <RootNamespace>QuantConnect.DataLibrary.Tests</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\Demonstration.cs" Link="Demonstration.cs" />
+    <Compile Include="..\QuiverWikipediaDataAlgorithm.cs" Link="QuiverWikipediaDataAlgorithm.cs" />
+    <Compile Include="..\QuiverWikipediaUniverseSelectionAlgorithm.cs" Link="QuiverWikipediaUniverseSelectionAlgorithm.cs" />
+    <None Include="..\QuiverWikipediaDataAlgorithm.py" Link="QuiverWikipediaDataAlgorithm.py" />
+    <None Include="..\QuiverWikipediaUniverseSelectionAlgorithm.py" Link="QuiverWikipediaUniverseSelectionAlgorithm.py" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="protobuf-net" Version="3.0.29" />
-    <PackageReference Include="protobuf-net.Core" Version="3.0.29" />
     <PackageReference Include="NUnit" Version="3.13.1" />
     <PackageReference Include="NUnit3TestAdapter" Version="3.17.0">
       <PrivateAssets>all</PrivateAssets>

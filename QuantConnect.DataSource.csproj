@@ -4,6 +4,7 @@
     <TargetFramework>net5.0</TargetFramework>
     <RootNamespace>QuantConnect.DataSource</RootNamespace>
     <AssemblyName>QuantConnect.DataSource.QuiverQuantWikipedia</AssemblyName>
+    <AssemblyName>QuantConnect.DataSource.QuiverQuantWikipediaUniverse</AssemblyName>
     <OutputPath>bin\$(Configuration)</OutputPath>
     <DocumentationFile>$(OutputPath)\QuantConnect.DataSource.QuiverQuantWikipedia.xml</DocumentationFile>
   </PropertyGroup>
@@ -18,11 +19,14 @@
     <Compile Remove="tests\**" />
     <EmbeddedResource Remove="tests\**" />
     <None Remove="tests\**" />
-    <Compile Remove="Demonstration.cs" />
+    <Compile Remove="DataProcessing\**" />
+    <EmbeddedResource Remove="DataProcessing\**" />
+    <None Remove="DataProcessing\**" />
+    <Compile Remove="QuiverWikipediaDataAlgorithm.cs" />
+    <Compile Remove="QuiverWikipediaUniverseSelectionAlgorithm.cs" />
+    <None Remove="QuiverWikipediaDataAlgorithm.py" />
+    <None Remove="QuiverWikipediaUniverseSelectionAlgorithm.py" />
     <None Remove=".gitignore" />
-    <None Remove="process.sample.ipynb" />
-    <None Remove="process.sample.py" />
-    <None Remove="process.sample.sh" />
   </ItemGroup>
 
 </Project>

@@ -13,12 +13,8 @@
  * limitations under the License.
 */
 
-using Newtonsoft.Json;
-using QuantConnect.Configuration;
-using QuantConnect.DataSource;
-using QuantConnect.Logging;
-using QuantConnect.Util;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -29,6 +25,13 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
+using QuantConnect.Configuration;
+using QuantConnect.Data.Auxiliary;
+using QuantConnect.DataSource;
+using QuantConnect.Lean.Engine.DataFeeds;
+using QuantConnect.Logging;
+using QuantConnect.Util;
 
 namespace QuantConnect.DataProcessing
 {
@@ -41,15 +44,19 @@ namespace QuantConnect.DataProcessing
         public const string VendorDataName = "wikipedia";
         
         private readonly string _destinationFolder;
+        private readonly string _universeFolder;
         private readonly string _clientKey;
+        private readonly string _dataFolder = Globals.DataFolder;
+        private readonly bool _canCreateUniverseFiles;
         private readonly int _maxRetries = 5;
-        private static readonly List<char> _defunctDelimiters = new List<char>
+        private static readonly List<char> _defunctDelimiters = new()
         {
             '-',
             '_'
         };
+        private ConcurrentDictionary<string, ConcurrentQueue<string>> _tempData = new();
         
-        private readonly JsonSerializerSettings _jsonSerializerSettings = new JsonSerializerSettings
+        private readonly JsonSerializerSettings _jsonSerializerSettings = new()
         {
             DateTimeZoneHandling = DateTimeZoneHandling.Utc
         };
@@ -62,17 +69,20 @@ namespace QuantConnect.DataProcessing
         /// <summary>
         /// Creates a new instance of <see cref="QuiverWikipedia"/>
         /// </summary>
-        /// <param name="destinationDataFolder">The data folder where the data will be saved</param>
+        /// <param name="destinationFolder">The folder where the data will be saved</param>
         /// <param name="apiKey">The QuiverQuant API key</param>
-        public QuiverWikipediaDataDownloader(string destinationDataFolder, string apiKey = null)
+        public QuiverWikipediaDataDownloader(string destinationFolder, string apiKey = null)
         {
-            _destinationFolder = Path.Combine(destinationDataFolder, "alternative", VendorName, VendorDataName);
+            _destinationFolder = Path.Combine(destinationFolder, "alternative", VendorName, VendorDataName);
+            _universeFolder = Path.Combine(_destinationFolder, "universe");
             _clientKey = apiKey ?? Config.Get("quiver-auth-token");
+            _canCreateUniverseFiles = Directory.Exists(Path.Combine(_dataFolder, "equity", "usa", "map_files"));
 
             // Represents rate limits of 10 requests per 1.1 second
             _indexGate = new RateGate(10, TimeSpan.FromSeconds(1.1));
 
             Directory.CreateDirectory(_destinationFolder);
+            Directory.CreateDirectory(_universeFolder);
         }
 
         /// <summary>
@@ -84,48 +94,39 @@ namespace QuantConnect.DataProcessing
             var stopwatch = Stopwatch.StartNew();
             var today = DateTime.UtcNow.Date;
 
+            var mapFileProvider = new LocalZipMapFileProvider();
+            mapFileProvider.Initialize(new DefaultDataProvider());
+
             try
             {
                 var companies = GetCompanies().Result.DistinctBy(x => x.Ticker).ToList();
                 var count = companies.Count;
-                var currentPercent = 0.05;
-                var percent = 0.05;
-                var i = 0;
+                var companiesCompleted = 0;
 
-                Log.Trace($"QuiverWikipediaDataDownloader.Run(): Start processing {count.ToStringInvariant()} companies");
+                Log.Trace(
+                    $"QuiverWikipediaDataDownloader.Run(): Start processing {count.ToStringInvariant()} companies");
 
                 var tasks = new List<Task>();
 
                 foreach (var company in companies)
                 {
-                    // Include tickers that are "defunct".
-                    // Remove the tag because it cannot be part of the API endpoint.
-                    // This is separate from the NormalizeTicker(...) method since
-                    // we don't convert tickers with `-`s into the format we can successfully
-                    // index mapfiles with.
                     var quiverTicker = company.Ticker;
-                    string ticker;
 
-
-                    if (!TryNormalizeDefunctTicker(quiverTicker, out ticker))
+                    if (!TryNormalizeDefunctTicker(quiverTicker, out var ticker))
                     {
-                        Log.Error($"QuiverWikipediaDataDownloader(): Defunct ticker {quiverTicker} is unable to be parsed. Continuing...");
+                        Log.Error(
+                            $"QuiverWikipediaDataDownloader(): Defunct ticker {quiverTicker} is unable to be parsed. Continuing...");
                         continue;
                     }
 
                     // Begin processing ticker with a normalized value
                     Log.Trace($"QuiverWikipediaDataDownloader.Run(): Processing {ticker}");
 
-                    // Makes sure we don't overrun Quiver rate limits accidentally
-                    _indexGate.WaitToProceed();
-
                     tasks.Add(
-                        HttpRequester($"historical/wikipedia/{ticker}")
+                        HttpRequester($"historical/{VendorDataName}/{ticker}")
                             .ContinueWith(
                                 y =>
                                 {
-                                    i++;
-
                                     if (y.IsFaulted)
                                     {
                                         Log.Error(
@@ -140,22 +141,30 @@ namespace QuantConnect.DataProcessing
                                         return;
                                     }
 
-                                    var wikipediaPageViews = JsonConvert.DeserializeObject<List<QuiverWikipedia>>(result, _jsonSerializerSettings);
+                                    var wikipediaPageViews =
+                                        JsonConvert.DeserializeObject<List<QuiverWikipediaUniverse>>(result,
+                                            _jsonSerializerSettings);
                                     var csvContents = new List<string>();
 
                                     foreach (var wikipediaPage in wikipediaPageViews)
                                     {
-                                        if (wikipediaPage.Date.Date == today)
-                                        {
-                                            Log.Trace($"Encountered data from today for {ticker}: {today:yyyy-MM-dd} - Skipping");
-                                            continue;
-                                        }
+                                        var dateTime = wikipediaPage.Date;
+                                        var date = $"{dateTime:yyyyMMdd}";
+                                        var views = wikipediaPage.PageViews;
+                                        var weekChange = wikipediaPage.WeekPercentChange;
+                                        var monthChange = wikipediaPage.MonthPercentChange;
 
-                                        csvContents.Add(string.Join(",",
-                                            $"{wikipediaPage.Date:yyyyMMdd}",
-                                            $"{wikipediaPage.PageViews}",
-                                            $"{wikipediaPage.WeekPercentChange}",
-                                            $"{wikipediaPage.MonthPercentChange}"));
+                                        csvContents.Add($"{date},{views},{weekChange},{monthChange}");
+                                        
+                                        if (!_canCreateUniverseFiles)
+                                            continue;
+                                        
+                                        var sid = SecurityIdentifier.GenerateEquity(ticker, Market.USA, true, mapFileProvider, dateTime);
+
+                                        var universeCsvContents = $"{sid},{ticker},{views},{weekChange},{monthChange}";
+
+                                        var queue = _tempData.GetOrAdd(date, new ConcurrentQueue<string>());
+                                        queue.Enqueue(universeCsvContents);
                                     }
 
                                     if (csvContents.Count != 0)
@@ -163,11 +172,11 @@ namespace QuantConnect.DataProcessing
                                         SaveContentToFile(_destinationFolder, ticker, csvContents);
                                     }
 
-                                    var percentageDone = i / count;
-                                    if (percentageDone >= currentPercent)
+                                    var newCompaniesCompleted = Interlocked.Increment(ref companiesCompleted);
+                                    if (newCompaniesCompleted % 100 == 0)
                                     {
-                                        Log.Trace($"QuiverWikipediaDataDownloader.Run(): {percentageDone.ToStringInvariant("P2")} complete");
-                                        currentPercent += percent;
+                                        Log.Trace(
+                                            $"QuiverWikipediaDataDownloader.Run(): {newCompaniesCompleted}/{count} complete");
                                     }
                                 }
                             )
@@ -176,6 +185,13 @@ namespace QuantConnect.DataProcessing
                     if (tasks.Count == 10)
                     {
                         Task.WaitAll(tasks.ToArray());
+
+                        foreach (var kvp in _tempData)
+                        {
+                            SaveContentToFile(_universeFolder, kvp.Key, kvp.Value);
+                        }
+
+                        _tempData.Clear();
                         tasks.Clear();
                     }
                 }
@@ -183,6 +199,13 @@ namespace QuantConnect.DataProcessing
                 if (tasks.Count != 0)
                 {
                     Task.WaitAll(tasks.ToArray());
+                    
+                    foreach (var kvp in _tempData)
+                    {
+                        SaveContentToFile(_universeFolder, kvp.Key, kvp.Value);
+                    }
+
+                    _tempData.Clear();
                     tasks.Clear();
                 }
             }
@@ -237,6 +260,10 @@ namespace QuantConnect.DataProcessing
 
                         // Responses are in JSON: you need to specify the HTTP header Accept: application/json
                         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                        
+                        // Makes sure we don't overrun Quiver rate limits accidentally
+                        _indexGate.WaitToProceed();
+
                         var response = await client.GetAsync(Uri.EscapeUriString(url));
                         if (response.StatusCode == HttpStatusCode.NotFound)
                         {
@@ -249,7 +276,6 @@ namespace QuantConnect.DataProcessing
                         {
                             var finalRequestUri = response.RequestMessage.RequestUri; // contains the final location after following the redirect.
                             response = client.GetAsync(finalRequestUri).Result; // Reissue the request. The DefaultRequestHeaders configured on the client will be used, so we don't have to set them again.
-
                         }
 
                         response.EnsureSuccessStatusCode();
@@ -274,46 +300,33 @@ namespace QuantConnect.DataProcessing
         /// Saves contents to disk, deleting existing zip files
         /// </summary>
         /// <param name="destinationFolder">Final destination of the data</param>
-        /// <param name="ticker">Stock ticker</param>
+        /// <param name="name">file name</param>
         /// <param name="contents">Contents to write</param>
-        private void SaveContentToFile(string destinationFolder, string ticker, IEnumerable<string> contents)
+        private void SaveContentToFile(string destinationFolder, string name, IEnumerable<string> contents)
         {
-            ticker = ticker.ToLowerInvariant();
-            var bkPath = Path.Combine(destinationFolder, $"{ticker}-bk.csv");
-            var finalPath = Path.Combine(destinationFolder, $"{ticker}.csv");
+            name = name.ToLowerInvariant();
+            var finalPath = Path.Combine(destinationFolder, $"{name}.csv");
             var finalFileExists = File.Exists(finalPath);
 
             var lines = new HashSet<string>(contents);
             if (finalFileExists)
             {
-                Log.Trace($"QuiverWikipediaDataDownloader.SaveContentToFile(): Adding to existing file: {finalPath}");
                 foreach (var line in File.ReadAllLines(finalPath))
                 {
                     lines.Add(line);
                 }
             }
-            else
-            {
-                Log.Trace($"QuiverWikipediaDataDownloader.SaveContentToFile(): Writing to file: {finalPath}");
-            }
 
-            var finalLines = lines
+            var finalLines = destinationFolder.Contains("universe") ? 
+                lines.OrderBy(x => x.Split(',').First()).ToList() :
+                lines
                 .OrderBy(x => DateTime.ParseExact(x.Split(',').First(), "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal))
                 .ToList();
 
             var tempPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tmp");
             File.WriteAllLines(tempPath, finalLines);
             var tempFilePath = new FileInfo(tempPath);
-            if (finalFileExists)
-            {
-                tempFilePath.Replace(finalPath,bkPath);
-                var bkFilePath = new FileInfo(bkPath);
-                bkFilePath.Delete();
-            }
-            else
-            {
-                tempFilePath.MoveTo(finalPath);
-            }
+            tempFilePath.MoveTo(finalPath);
         }
 
         /// <summary>
@@ -347,22 +360,6 @@ namespace QuantConnect.DataProcessing
 
             nonDefunctTicker = ticker;
             return true;
-        }
-
-
-        /// <summary>
-        /// Normalizes Estimize tickers to a format usable by the <see cref="Data.Auxiliary.MapFileResolver"/>
-        /// </summary>
-        /// <param name="ticker">Ticker to normalize</param>
-        /// <returns>Normalized ticker</returns>
-        private static string NormalizeTicker(string ticker)
-        {
-            return ticker.ToLowerInvariant()
-                .Replace("- defunct", string.Empty)
-                .Replace("-defunct", string.Empty)
-                .Replace(" ", string.Empty)
-                .Replace("|", string.Empty)
-                .Replace("-", ".");
         }
 
         private class Company

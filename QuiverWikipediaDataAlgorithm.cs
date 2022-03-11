@@ -24,7 +24,8 @@ using QuantConnect.Algorithm;
 namespace QuantConnect.DataLibrary.Tests
 {
     /// <summary>
-    /// Example algorithm using the custom data type as a source of alpha
+    /// Quiver Quantitative is a provider of alternative data.
+    /// This algorithm shows how to consume the 'QuiverWikipedia'
     /// </summary>
     public class QuiverWikipediaDataAlgorithm : QCAlgorithm
     {
@@ -36,8 +37,8 @@ namespace QuantConnect.DataLibrary.Tests
         /// </summary>
         public override void Initialize()
         {
-            SetStartDate(2013, 10, 07);  //Set Start Date
-            SetEndDate(2013, 10, 11);    //Set End Date
+            SetStartDate(2021, 10, 7);  //Set Start Date
+            SetEndDate(2021, 10, 11);    //Set End Date
             _equitySymbol = AddEquity("SPY").Symbol;
             _customDataSymbol = AddData<QuiverWikipedia>(_equitySymbol).Symbol;
         }
