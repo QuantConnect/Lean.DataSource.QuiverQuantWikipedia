@@ -82,11 +82,12 @@ namespace QuantConnect.DataSource
         {
             // Date[0], Ticker[1], PageViews[2], WeekPercentChange[3], MonthPercentChange[4]
             var csv = csvLine.Split(',');
+            Date = Parse.DateTimeExact(csv[0], "yyyyMMdd");
             PageViews = csv[1].IfNotNullOrEmpty<decimal?>(s => Parse.Decimal(s));
             WeekPercentChange = csv[2].IfNotNullOrEmpty<decimal?>(s => Parse.Decimal(s));
             MonthPercentChange = csv[3].IfNotNullOrEmpty<decimal?>(s => Parse.Decimal(s));
             
-            Time = Parse.DateTimeExact(csv[0], "yyyyMMdd");
+            Time = Date;
         }
 
         /// <summary>
