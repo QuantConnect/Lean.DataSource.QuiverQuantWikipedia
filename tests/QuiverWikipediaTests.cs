@@ -15,10 +15,8 @@
 */
 
 using System;
-using ProtoBuf;
 using System.IO;
 using System.Linq;
-using ProtoBuf.Meta;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using QuantConnect.Data;
@@ -99,26 +97,6 @@ namespace QuantConnect.DataLibrary.Tests
         }
 
         [Test]
-        public void ProtobufRoundTrip()
-        {
-            var expected = CreateNewInstance();
-            var type = expected.GetType();
-
-            RuntimeTypeModel.Default[typeof(BaseData)].AddSubType(2000, type);
-
-            using (var stream = new MemoryStream())
-            {
-                Serializer.Serialize(stream, expected);
-
-                stream.Position = 0;
-
-                var result = Serializer.Deserialize(type, stream);
-
-                AssertAreEqual(expected, result, filterByCustomAttributes: true);
-            }
-        }
-
-        [Test]
         public void Clone()
         {
             var expected = CreateNewInstance();
@@ -149,7 +127,6 @@ namespace QuantConnect.DataLibrary.Tests
             {
                 Symbol = Symbol.Empty,
                 Time = DateTime.Today,
-                Period = TimeSpan.FromDays(1),
                 DataType = MarketDataType.Base,
                 
                 Date = new DateTime(2020, 1, 5),

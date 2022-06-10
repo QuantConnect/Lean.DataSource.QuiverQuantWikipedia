@@ -20,7 +20,6 @@ using System.Globalization;
 using System.IO;
 using Newtonsoft.Json;
 using NodaTime;
-using ProtoBuf;
 using QuantConnect.Data;
 using QuantConnect.Util;
 
@@ -31,10 +30,11 @@ namespace QuantConnect.DataSource
     /// </summary>
     public class QuiverWikipediaUniverse : BaseData
     {
+        private static readonly TimeSpan _period = TimeSpan.FromDays(1);
+        
         /// <summary>
         /// The date of the Page View count
         /// </summary>
-        [ProtoMember(10)]
         [JsonProperty(PropertyName = "Date")]
         [JsonConverter(typeof(DateTimeJsonConverter), "yyyy-MM-dd")]
         public DateTime Date { get; set; }
@@ -42,7 +42,6 @@ namespace QuantConnect.DataSource
         /// <summary>
         /// The company's Wikipedia Page Views on the given date
         /// </summary>
-        [ProtoMember(11)]
         [JsonProperty(PropertyName = "Views")]
         public decimal? PageViews { get; set; }
 
@@ -50,7 +49,6 @@ namespace QuantConnect.DataSource
         /// The view count % change over the week prior to the date.
         /// Represented as a whole number (e.g. 100% = 100.0)
         /// </summary>
-        [ProtoMember(12)]
         [JsonProperty(PropertyName = "pct_change_week")]
         public decimal? WeekPercentChange { get; set; }
 
@@ -58,20 +56,13 @@ namespace QuantConnect.DataSource
         /// The view count % change over the month prior to the date
         /// Represented as a whole number (e.g. 100% = 100.0)
         /// </summary>
-        [ProtoMember(13)]
         [JsonProperty(PropertyName = "pct_change_month")]
         public decimal? MonthPercentChange { get; set; }
 
         /// <summary>
-        /// The period of time that occurs between the starting time and ending time of the data point
-        /// </summary>
-        [ProtoMember(14)]
-        public TimeSpan Period { get; set; } = TimeSpan.FromDays(1);
-
-        /// <summary>
         /// The time the data point ends at and becomes available to the algorithm
         /// </summary>
-        public override DateTime EndTime => Time + Period;
+        public override DateTime EndTime => Time + _period;
 
         /// <summary>
         /// Return the URL string source of the file. This will be converted to a stream
@@ -115,7 +106,7 @@ namespace QuantConnect.DataSource
                 MonthPercentChange = decimal.Parse(csv[4], NumberStyles.Any, CultureInfo.InvariantCulture),
 
                 Symbol = new Symbol(SecurityIdentifier.Parse(csv[0]), csv[1]),
-                Time = date - Period,
+                Time = date,
                 Value = pageViews
             };
         }
