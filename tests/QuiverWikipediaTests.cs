@@ -127,7 +127,6 @@ namespace QuantConnect.DataLibrary.Tests
             {
                 Symbol = Symbol.Empty,
                 Time = DateTime.Today,
-                Period = TimeSpan.FromDays(1),
                 DataType = MarketDataType.Base,
                 
                 Date = new DateTime(2020, 1, 5),
