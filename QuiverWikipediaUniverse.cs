@@ -106,7 +106,7 @@ namespace QuantConnect.DataSource
                 MonthPercentChange = decimal.Parse(csv[4], NumberStyles.Any, CultureInfo.InvariantCulture),
 
                 Symbol = new Symbol(SecurityIdentifier.Parse(csv[0]), csv[1]),
-                Time = date - _period,
+                Time = date,
                 Value = pageViews
             };
         }
