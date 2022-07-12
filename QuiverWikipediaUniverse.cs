@@ -97,17 +97,17 @@ namespace QuantConnect.DataSource
         public override BaseData Reader(SubscriptionDataConfig config, string line, DateTime date, bool isLiveMode)
         {
             var csv = line.Split(',');
-            var pageViews = decimal.Parse(csv[2], NumberStyles.Any, CultureInfo.InvariantCulture);
+            var pageViews = csv[2].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
 
             return new QuiverWikipediaUniverse
             {
                 PageViews = pageViews,
-                WeekPercentChange = decimal.Parse(csv[3], NumberStyles.Any, CultureInfo.InvariantCulture),
-                MonthPercentChange = decimal.Parse(csv[4], NumberStyles.Any, CultureInfo.InvariantCulture),
+                WeekPercentChange = csv[3].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture)),
+                MonthPercentChange = csv[4].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture)),
 
                 Symbol = new Symbol(SecurityIdentifier.Parse(csv[0]), csv[1]),
                 Time = date,
-                Value = pageViews
+                Value = pageViews ?? 0
             };
         }
     }
