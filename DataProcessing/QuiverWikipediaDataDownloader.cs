@@ -26,6 +26,7 @@ using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using QuantConnect.Configuration;
 using QuantConnect.Data.Auxiliary;
 using QuantConnect.DataSource;
@@ -56,7 +57,7 @@ namespace QuantConnect.DataProcessing
         };
         private ConcurrentDictionary<string, ConcurrentQueue<string>> _tempData = new();
         
-        private readonly JsonSerializerSettings _jsonSerializerSettings = new()
+        private JsonSerializerSettings _jsonSerializerSettings = new()
         {
             DateTimeZoneHandling = DateTimeZoneHandling.Utc
         };
@@ -96,6 +97,8 @@ namespace QuantConnect.DataProcessing
 
             var mapFileProvider = new LocalZipMapFileProvider();
             mapFileProvider.Initialize(new DefaultDataProvider());
+            
+            _jsonSerializerSettings.Converters.Add(new NoNanRealConverter());
 
             try
             {
@@ -383,6 +386,54 @@ namespace QuantConnect.DataProcessing
         public void Dispose()
         {
             _indexGate?.Dispose();
+        }
+    }
+
+    public class NoNanRealConverter : JsonConverter
+    {
+        public override bool CanConvert(Type objectType)
+        {
+            var type = Nullable.GetUnderlyingType(objectType) ?? objectType;
+            return new[] { typeof(float), typeof(double), typeof(decimal) }.Contains(type);
+        }
+
+        public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
+        {
+            var nullableBase = Nullable.GetUnderlyingType(objectType);
+            var type = nullableBase ?? objectType;
+            if (nullableBase != null && reader.TokenType == JsonToken.Null)
+                return null;
+            
+            if (type == typeof(double))
+            {
+                var value = Convert.ToDouble(reader.Value);
+                return Double.IsNaN(value) ? null : value;
+            }
+            else if (type == typeof(float))
+            {
+                var value = Convert.ToSingle(reader.Value);
+                return Single.IsNaN(value) ? null : value;
+            }
+            try
+            {
+                return Convert.ToDecimal(reader.Value);
+            }
+            catch (OverflowException e)
+            {
+                return null;
+            }
+        }
+
+        public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
+        {
+            if (value == null)
+                writer.WriteNull();
+            else if (value is double d && Double.IsNaN(d))
+                writer.WriteNull();
+            else if (value is float f && Single.IsNaN(f))
+                writer.WriteNull();
+            else
+                writer.WriteValue(value);
         }
     }
 }
