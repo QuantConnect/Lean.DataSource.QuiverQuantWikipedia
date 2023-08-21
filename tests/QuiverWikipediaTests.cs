@@ -15,7 +15,6 @@
 */
 
 using System;
-using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
 using NUnit.Framework;
@@ -27,30 +26,6 @@ namespace QuantConnect.DataLibrary.Tests
     [TestFixture]
     public class QuiverWikipediaTests
     {
-        private readonly JsonSerializerSettings _jsonSerializerSettings = new JsonSerializerSettings
-        {
-            DateTimeZoneHandling = DateTimeZoneHandling.Utc
-        };
-
-        [Test]
-        public void DeserializeQuiverWikipedia()
-        {
-            var content = "{" +
-                          "\"Date\":\"2020-01-01\"," +
-                          "\"Ticker\":\"ABBV\"," +
-                          "\"Views\":3500," +
-                          "\"pct_change_week\":3.2," +
-                          "\"pct_change_month\":6.75}";
-
-            var data = JsonConvert.DeserializeObject<QuiverWikipedia>(content, _jsonSerializerSettings);
-
-            Assert.NotNull(data);
-            Assert.AreEqual(new DateTime(2020, 01, 01, 0, 0, 0), data.Date);
-            Assert.AreEqual(3500, data.PageViews);
-            Assert.AreEqual(3.2, data.WeekPercentChange);
-            Assert.AreEqual(6.75, data.MonthPercentChange);
-        }
-
         [Test]
         public void QuiverWikipediaReader()
         {

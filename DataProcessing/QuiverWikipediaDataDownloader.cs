@@ -426,14 +426,7 @@ namespace QuantConnect.DataProcessing
 
         public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {
-            if (value == null)
-                writer.WriteNull();
-            else if (value is double d && Double.IsNaN(d))
-                writer.WriteNull();
-            else if (value is float f && Single.IsNaN(f))
-                writer.WriteNull();
-            else
-                writer.WriteValue(value);
+            throw new NotImplementedException();
         }
     }
 }
