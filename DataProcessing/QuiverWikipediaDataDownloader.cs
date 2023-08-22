@@ -391,6 +391,8 @@ namespace QuantConnect.DataProcessing
 
     public class NoNanRealConverter : JsonConverter
     {
+        public override bool CanWrite => False;
+        
         public override bool CanConvert(Type objectType)
         {
             var type = Nullable.GetUnderlyingType(objectType) ?? objectType;
