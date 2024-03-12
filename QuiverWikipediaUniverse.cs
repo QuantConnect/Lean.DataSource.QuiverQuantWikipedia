@@ -15,12 +15,12 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using Newtonsoft.Json;
 using NodaTime;
 using QuantConnect.Data;
+using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Util;
 
 namespace QuantConnect.DataSource
@@ -28,7 +28,7 @@ namespace QuantConnect.DataSource
     /// <summary>
     /// Universe Selection helper class for QuiverWikipedia dataset
     /// </summary>
-    public class QuiverWikipediaUniverse : BaseData
+    public class QuiverWikipediaUniverse : BaseDataCollection
     {
         private static readonly TimeSpan _period = TimeSpan.FromDays(1);
         
@@ -82,7 +82,8 @@ namespace QuantConnect.DataSource
                     "universe",
                     $"{date.ToStringInvariant(DateFormat.EightCharacter)}.csv"
                 ),
-                SubscriptionTransportMedium.LocalFile
+                SubscriptionTransportMedium.LocalFile,
+                FileFormat.FoldingCollection
             );
         }
 
@@ -106,8 +107,37 @@ namespace QuantConnect.DataSource
                 MonthPercentChange = csv[4].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture)),
 
                 Symbol = new Symbol(SecurityIdentifier.Parse(csv[0]), csv[1]),
+                Date = date,
                 Time = date,
                 Value = pageViews ?? 0
+            };
+        }
+
+        /// <summary>
+        /// Specifies the data time zone for this data type. This is useful for custom data types
+        /// </summary>
+        /// <returns>The <see cref="DateTimeZone"/> of this data type</returns>
+        public override DateTimeZone DataTimeZone()
+        {
+            return TimeZones.Utc;
+        }
+
+        /// <summary>
+        /// Clones this instance
+        /// </summary>
+        public override BaseData Clone()
+        {
+            return new QuiverWikipediaUniverse
+            {
+                Symbol = Symbol,
+                Time = Time,
+                Date = Date,
+                Value = Value,
+                Data = Data,
+
+                PageViews = PageViews,
+                WeekPercentChange = WeekPercentChange,
+                MonthPercentChange = MonthPercentChange,
             };
         }
     }
