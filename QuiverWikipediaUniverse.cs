@@ -28,6 +28,7 @@ namespace QuantConnect.DataSource
     /// <summary>
     /// Universe Selection helper class for QuiverWikipedia dataset
     /// </summary>
+    [JsonObject]
     public class QuiverWikipediaUniverse : BaseDataCollection
     {
         private static readonly TimeSpan _period = TimeSpan.FromDays(1);
