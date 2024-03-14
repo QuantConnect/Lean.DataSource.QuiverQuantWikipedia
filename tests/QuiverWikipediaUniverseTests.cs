@@ -16,14 +16,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
-using NodaTime;
 using NUnit.Framework;
 using QuantConnect.Data;
 using QuantConnect.DataSource;
-using QuantConnect.Data.Market;
+using QuantConnect.Configuration;
+using QuantConnect.Interfaces;
+using QuantConnect.Util;
+using QuantConnect.Lean.Engine.DataFeeds;
 
 namespace QuantConnect.DataLibrary.Tests
 {
@@ -44,6 +45,9 @@ namespace QuantConnect.DataLibrary.Tests
         [Test]
         public void Selection()
         {
+            var mapFileProvider = Composer.Instance.GetExportedValueByTypeName<IMapFileProvider>(Config.Get("map-file-provider", "LocalDiskMapFileProvider"));
+            mapFileProvider.Initialize(new DefaultDataProvider());
+
             var datum = CreateNewSelection();
 
             var expected = from d in datum
