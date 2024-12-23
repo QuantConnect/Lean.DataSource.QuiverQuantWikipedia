@@ -25,12 +25,19 @@ using QuantConnect.Configuration;
 using QuantConnect.Interfaces;
 using QuantConnect.Util;
 using QuantConnect.Lean.Engine.DataFeeds;
+using QuantConnect.Data.Auxiliary;
 
 namespace QuantConnect.DataLibrary.Tests
 {
     [TestFixture]
     public class QuiverWikipediaUniverseTests
     {
+        [OneTimeSetUp]
+        public void Setup()
+        {
+            Composer.Instance.GetExportedValueByTypeName<IMapFileProvider>(Configuration.Config.Get("map-file-provider", typeof(LocalDiskMapFileProvider).Name));
+        }
+
         [Test]
         public void JsonRoundTrip()
         {
